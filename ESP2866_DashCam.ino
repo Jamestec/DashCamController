@@ -1,9 +1,4 @@
 #include "ESP8266WiFi.h"
-#include "SparkFun_Si7021_Breakout_Library.h"
-#include <Wire.h>
-#include <ESP8266HTTPClient.h>
-#include <sys/time.h>
-
 #include "login.h"
 
 #define uS_TO_S_FACTOR 1000000  //Conversion factor for micro seconds to seconds
