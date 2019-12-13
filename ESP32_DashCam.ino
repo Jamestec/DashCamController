@@ -2,13 +2,15 @@
 #include "login.h"
 
 #define uS_TO_S_FACTOR 1000000  // Conversion factor for micro seconds to seconds
-#define TIME_TO_SLEEP 6       // Time between checking for WiFi SSID
-#define TIME_FIRST_DELAY 6    // Time relay is on when ESP first starts before checking WiFi SSID
-#define TIMES_TO_CHECK 3        // Check this many times before turning on relay
+#define TIME_TO_SLEEP 60        // Time between checking for WiFi SSID
+#define TIME_FIRST_DELAY 600    // Time relay is on when ESP first starts before checking WiFi SSID
+#define TIME_TO_RECHECK 10      // Time before rechecking SSID is actually not available
 
 #define CONTROL_PIN 13
 #define GPIO_CONTROL_PIN GPIO_NUM_13
 #define VERBOSE 1
+
+RTC_DATA_ATTR int found = 1;
 
 void setup(){
   if (VERBOSE) Serial.begin(115200);
@@ -23,13 +25,15 @@ void loop(){
 }
 
 void doWork() {
-  for (int i = 0; i < TIMES_TO_CHECK; i++) {
-    if (isWiFiAvailable()) {
-      turnOffRelay(TIME_TO_SLEEP);
-    }
+  if (isWiFiAvailable()) {
+    turnOffRelay(TIME_TO_SLEEP);
   }
-  if (VERBOSE) Serial.printf("Couldn't find %s after %d tries\n", ssid, TIMES_TO_CHECK);
-  turnOnRelay(TIME_TO_SLEEP);
+  if (found) {
+    found = 0;
+    doDeepSleep(TIME_TO_RECHECK);
+  } else {
+    turnOnRelay(TIME_TO_SLEEP);
+  }
 }
 
 bool isWiFiAvailable() {
