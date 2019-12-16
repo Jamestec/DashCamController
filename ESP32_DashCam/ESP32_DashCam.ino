@@ -3,18 +3,15 @@
 
 #define uS_TO_S_FACTOR 1000000      // Conversion factor for micro seconds to seconds
 #define TIME_TO_SLEEP 60            // Time between checking for WiFi SSID
-#define WIFI_DOT_INTERVAL 50        // Milliseconds between checking if WiFi has connected
-#define WIFI_DOT_INTERVAL_SEC 0.05  // WIFI_DOT_INTERVAL / 1000
-#define WIFI_DOT_LINE 20            // Amount of dots before new line for dots
-#define TIMEOUT 200                 // Stops trying to connect to WiFi after TIMEOUT * 0.05 seconds
 #define TIME_FIRST_DELAY 600        // Time relay is on when ESP first starts before checking WiFi SSID
 #define TIME_TO_RECHECK 10          // Time before rechecking SSID is actually not available
+#define TURN_ON_AFTER 3             // How many rechecks before turning on relay
 
 #define CONTROL_PIN 13
 #define GPIO_CONTROL_PIN GPIO_NUM_13
 #define VERBOSE 1
 
-RTC_DATA_ATTR int found = 1;
+RTC_DATA_ATTR int NotFound = 0;
 
 void setup(){
   if (VERBOSE) Serial.begin(115200);
@@ -30,11 +27,11 @@ void loop(){
 
 void doWork() {
   if (isWiFiAvailable()) {
-    found = 1;
+    NotFound = 0;
     turnOffRelay(TIME_TO_SLEEP);
   }
-  if (found) {
-    found = 0;
+  if (NotFound < TURN_ON_AFTER) {
+    NotFound += 1;
     doDeepSleep(TIME_TO_RECHECK);
   } else {
     turnOnRelay(TIME_TO_SLEEP);
@@ -42,27 +39,15 @@ void doWork() {
 }
 
 bool isWiFiAvailable() {
-  if (VERBOSE) Serial.print("Connecting to WiFi...");
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);
-  int wifiCount = 0;
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED && wifiCount < TIMEOUT) {
-    if (VERBOSE && wifiCount % WIFI_DOT_LINE == 0) Serial.println("");
-    if (VERBOSE) Serial.print(".");
-    wifiCount += 1;
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(WIFI_DOT_INTERVAL);
-    digitalWrite(LED_BUILTIN, LOW);
+  if (VERBOSE) Serial.println("Scanning WiFi..."  );
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n; i++) {
+    if (VERBOSE) Serial.printf("%d. %s\n", i + 1, WiFi.SSID(i).c_str());
+    if (WiFi.SSID(i).equals(ssid)) {
+      if (VERBOSE) Serial.printf("Found %s\n", ssid);
+      return true;
+    }
   }
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
-  btStop();
-  if (wifiCount < TIMEOUT) {
-    Serial.printf("\n...Connected to %s in %.2f second(s)!\n", ssid, WIFI_DOT_INTERVAL_SEC * wifiCount);
-    return true;
-  }
-  if (VERBOSE) Serial.printf("\nCould not connect to WiFi in %.2f seconds.\n", TIMEOUT * WIFI_DOT_INTERVAL_SEC);
   return false;
 }
 
